@@ -99,13 +99,13 @@ with st.sidebar:
 
 # --- 7. 主界面布局 ---
 st.markdown('<div class="main-header">🧠 Retrieval-based QA System</div>', unsafe_allow_html=True)
-st.markdown("<div style='text-align: center; color: grey;'>基于 RAG 架构的智能文档问答系统</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: grey;'>基于 RAG 架构的维基百科智能问答系统</div>", unsafe_allow_html=True)
 st.markdown("---")
 
 # 搜索框区域
 col1, col2 = st.columns([4, 1])
 with col1:
-    query = st.text_input("请输入您的问题：", placeholder="例如：什么是生成式人工智能？")
+    query = st.text_input("请输入您的问题：", placeholder="例如：什么是GenAI？")
 with col2:
     search_btn = st.button("🔍 开始检索", use_container_width=True)
 

@@ -1,0 +1,1 @@
+大型语言模型（Large Language Model，LLM）是一种人工智能模型，旨在理解和生成人类语言。它们在大量的文本数据上进行训练，可以执行广泛的自然语言处理任务，如文本生成、翻译、摘要、问答等。[1] 著名的LLM包括OpenAI的GPT系列、Google的PaLM和Gemini、Meta的LLaMA等。这些模型通常基于Transformer架构，拥有数十亿甚至数万亿的参数。

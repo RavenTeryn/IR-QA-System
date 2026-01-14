@@ -1,0 +1,1 @@
+BERT（Bidirectional Encoder Representations from Transformers）是Google在2018年发布的预训练语言模型。[1] BERT的核心创新在于利用Transformer的编码器结构，通过掩码语言模型（MLM）和下一句预测（NSP）两个任务进行双向预训练。BERT在发布时打破了11项NLP任务的记录，开启了NLP领域的预训练微调（Pre-training & Fine-tuning）新范式。
