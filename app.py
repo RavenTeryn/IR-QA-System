@@ -52,11 +52,9 @@ def initialize_system():
     # A. 加载模型 (这里不显示加载文字，而是静默加载，状态在侧边栏显示)
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-zh-v1.5")
     
-    # B. 读取当前目录下所有 txt 文件
-    # 使用 '.' 代表根目录，确保 GitHub 部署时能找到文件
-    loader = DirectoryLoader('.', glob="*.txt", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
+    # B. 读取 data 文件夹下所有 txt 文件
+    loader = DirectoryLoader('data/', glob="**/*.txt", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
     documents = loader.load()
-    
     if not documents:
         return None, None
 
