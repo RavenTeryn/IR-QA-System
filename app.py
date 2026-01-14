@@ -1,87 +1,155 @@
-import streamlit as st
 import os
+# --- 1. 配置国内镜像源 (必须放在最前面) ---
 os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+
+import streamlit as st
+import time
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# --- 1. 页面设置 (对应功能要求: User Interface) ---
-st.set_page_config(page_title="我的智能问答系统", layout="wide")
-st.title("🤖 维基百科智能问答系统 (QA Bot)")
-st.write("本系统基于 RAG 技术，能够根据上传的知识库回答问题。")
+# --- 2. 页面基础设置 ---
+st.set_page_config(
+    page_title="智能检索问答系统",
+    page_icon="🧠",
+    layout="wide"
+)
 
-# --- 2. 加载与处理数据的函数 ---
-@st.cache_resource  # 这个装饰器让系统不用每次刷新都重新加载模型，速度更快
+# --- 3. 自定义 CSS (让界面更好看) ---
+st.markdown("""
+<style>
+    .reportview-container {
+        background: #f0f2f6;
+    }
+    .main-header {
+        font-size: 2.5rem;
+        color: #4B4B4B;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .source-card {
+        background-color: #ffffff;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
+        border-left: 5px solid #ff4b4b;
+    }
+    .answer-box {
+        background-color: #e8f4f8;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #b8daff;
+        margin-bottom: 20px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 4. 核心逻辑函数 (带缓存) ---
+@st.cache_resource
 def initialize_system():
-    # A. 检查 data 文件夹是否存在
-    if not os.path.exists("data"):
-        os.makedirs("data")
-        st.warning("⚠️ 'data' 文件夹为空！请放入 .txt 文件后刷新页面。")
-        # 创建一个示例文件防止报错
-        with open("data/sample.txt", "w", encoding='utf-8') as f:
-            f.write("故宫位于北京中心，是明清两代的皇宫。北京是中国的首都。")
-    
-    # B. 加载模型 (关键点：换成中文模型 BAAI/bge-small-zh-v1.5)
-    # 第一次运行会自动下载模型，可能需要一点时间
-    st.info("正在加载中文嵌入模型 (BAAI/bge-small-zh-v1.5)...")
+    # A. 加载模型 (这里不显示加载文字，而是静默加载，状态在侧边栏显示)
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-zh-v1.5")
     
-    # C. 读取 data 文件夹下所有 txt 文件
-    loader = DirectoryLoader('data/', glob="**/*.txt", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
+    # B. 读取当前目录下所有 txt 文件
+    # 使用 '.' 代表根目录，确保 GitHub 部署时能找到文件
+    loader = DirectoryLoader('.', glob="*.txt", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
     documents = loader.load()
     
     if not documents:
         return None, None
 
-    # D. 切分文档 (Text Splitting)
-    # 把长文章切成 200 字一段，方便检索定位
-# 改进版：加入中文标点符号支持，并稍微加大分块大小
+    # C. 切分文档 (针对中文优化断句)
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=300,        # 把块大小从200增加到300，保证能包含更多上下文
-        chunk_overlap=50,      # 重叠部分，防止上下文丢失
-        separators=["\n\n", "\n", "。", "！", "？", "，", "、", ""] # 优先级：先按段落切，再按句号切
+        chunk_size=300,        
+        chunk_overlap=50,      
+        separators=["\n\n", "\n", "。", "！", "？", "，", "、", ""] 
     )
     splits = text_splitter.split_documents(documents)
     
-    # E. 建立向量索引 (Retrieval Module)
+    # D. 建立向量索引
     vector_db = FAISS.from_documents(splits, embeddings)
     
     return vector_db, documents
 
-# --- 3. 初始化系统 ---
-vector_db, raw_docs = initialize_system()
+# --- 5. 初始化系统 ---
+with st.spinner("系统正在初始化，构建向量索引中..."):
+    vector_db, raw_docs = initialize_system()
 
-# 侧边栏显示信息
+# --- 6. 侧边栏布局 (系统状态与技术栈) ---
 with st.sidebar:
-    st.header("📚 知识库状态")
+    st.title("⚙️ 系统控制台")
+    
+    # 技术栈说明 (替换了原来的Loading提示)
+    st.markdown("### 🛠️ 技术架构")
+    st.info("**Embedding Model:**\n\nBAAI/bge-small-zh-v1.5 (智源中文语义向量)")
+    st.info("**Vector Database:**\n\nFAISS (Facebook AI Similarity Search)")
+    
+    st.markdown("---")
+    
+    # 知识库状态
+    st.markdown("### 📚 知识库状态")
     if raw_docs:
-        st.success(f"已加载 {len(raw_docs)} 篇文章")
-        st.write("文件列表:")
-        for doc in raw_docs:
-            st.code(doc.metadata['source'].split('/')[-1]) # 只显示文件名
+        st.success(f"✅ 已加载文档数: {len(raw_docs)}")
+        with st.expander("查看文件列表"):
+            for doc in raw_docs:
+                file_name = doc.metadata['source'].split('/')[-1] if '/' in doc.metadata['source'] else doc.metadata['source']
+                st.text(f"📄 {file_name}")
     else:
-        st.error("未找到文档，请在 data 文件夹中添加 txt 文件。")
+        st.error("⚠️ 未检测到文档，请上传 .txt 文件")
 
-# --- 4. 问答交互区域 ---
-# 输入框 (Input Query)
-query = st.text_input("请输入你的问题：", placeholder="例如：故宫是哪个朝代建立的？")
+# --- 7. 主界面布局 ---
+st.markdown('<div class="main-header">🧠 Retrieval-based QA System</div>', unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: grey;'>基于 RAG 架构的智能文档问答系统</div>", unsafe_allow_html=True)
+st.markdown("---")
 
-if query and vector_db:
-    # 检索逻辑 (Retrieval)
-    # k=3 表示找最相似的 3 个段落
-    results = vector_db.similarity_search(query, k=3)
+# 搜索框区域
+col1, col2 = st.columns([4, 1])
+with col1:
+    query = st.text_input("请输入您的问题：", placeholder="例如：什么是生成式人工智能？")
+with col2:
+    search_btn = st.button("🔍 开始检索", use_container_width=True)
+
+# --- 8. 检索与结果展示 ---
+if (query or search_btn) and vector_db:
+    start_time = time.time()
     
-    st.markdown("### 🔍 找到的答案段落：")
+    # 核心检索步骤
+    # k=4: 获取最相关的4个片段，第1个作为直接答案，后3个作为参考
+    results = vector_db.similarity_search(query, k=4)
     
-    # 展示结果
-    for i, doc in enumerate(results):
-        with st.expander(f"参考来源 {i+1} (点击展开/收起)"):
-            st.markdown(f"**内容:** {doc.page_content}")
-            st.caption(f"来源文件: {doc.metadata['source']}")
-            
-    # 这里其实完成了 Retrieve (检索)，你可以把最上面的结果当作即时答案
-    st.success(f"最佳答案可能是：\n\n{results[0].page_content}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    
+    # 显示检索统计
+    st.caption(f"🚀 检索完成，耗时 {elapsed_time:.4f} 秒")
+
+    # A. 最佳答案区域 (Top 1 Result)
+    st.markdown("### 💡 最佳匹配答案 (Best Answer Passage)")
+    
+    best_result = results[0]
+    best_source = best_result.metadata['source']
+    
+    # 使用自定义样式的容器
+    st.markdown(f"""
+    <div class="answer-box">
+        <p style="font-size: 1.1em; line-height: 1.6;">{best_result.page_content}</p>
+        <hr style="border-top: 1px dashed #bbb;">
+        <p style="color: #666; font-size: 0.9em;">📍 <strong>来源文档:</strong> {best_source}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # B. 更多相关上下文 (Context)
+    with st.expander("📖 查看更多相关上下文 (Supporting Context)"):
+        for i, doc in enumerate(results[1:], 1):
+            source_file = doc.metadata['source']
+            st.markdown(f"""
+            <div class="source-card">
+                <p><strong>相关片段 {i}:</strong> {doc.page_content}</p>
+                <p style="font-size: 0.8em; color: grey;">📄 Source: {source_file}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 elif not vector_db:
-    st.write("请先准备数据。")
+    st.warning("请检查目录下是否存在 .txt 文件。")
