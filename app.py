@@ -103,7 +103,7 @@ st.markdown("<div style='text-align: center; color: grey;'>基于 RAG 架构的�
 st.markdown("---")
 
 # 搜索框区域
-col1, col2 = st.columns([4, 1])
+col1, col2 = st.columns([4, 1], vertical_alignment="bottom")
 with col1:
     query = st.text_input("请输入您的问题：", placeholder="例如：什么是GenAI？")
 with col2:
